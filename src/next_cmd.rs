@@ -5,6 +5,14 @@ use regex::Regex;
 use std::process::Command;
 use std::sync::LazyLock;
 
+// Bundle size pattern
+static BUNDLE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^[○●◐λ✓]\s+([\w/\-\.]+)\s+(\d+(?:\.\d+)?)\s*(kB|B)\s+(\d+(?:\.\d+)?)\s*(kB|B)")
+        .unwrap()
+});
+static TIME_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(\d+(?:\.\d+)?)\s*(s|ms)").unwrap());
+
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
@@ -57,15 +65,6 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
 
 /// Filter Next.js build output - extract routes, bundles, warnings
 fn filter_next_build(output: &str) -> String {
-    // Route line pattern: ○ /dashboard    1.2 kB  132 kB
-    static ROUTE_PATTERN: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^[○●◐λ✓]\s+(/[^\s]*)\s+(\d+(?:\.\d+)?)\s*(kB|B)").unwrap());
-    // Bundle size pattern
-    static BUNDLE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"^[○●◐λ✓]\s+([\w/\-\.]+)\s+(\d+(?:\.\d+)?)\s*(kB|B)\s+(\d+(?:\.\d+)?)\s*(kB|B)")
-            .unwrap()
-    });
-
     let mut routes_static = 0;
     let mut routes_dynamic = 0;
     let mut routes_total = 0;
@@ -184,9 +183,6 @@ fn filter_next_build(output: &str) -> String {
 
 /// Extract time from build output (e.g., "Compiled in 34.2s")
 fn extract_time(line: &str) -> Option<String> {
-    static TIME_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(\d+(?:\.\d+)?)\s*(s|ms)").unwrap());
-
     TIME_RE
         .captures(line)
         .map(|caps| format!("{}{}", &caps[1], &caps[2]))

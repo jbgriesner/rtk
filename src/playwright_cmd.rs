@@ -5,6 +5,13 @@ use regex::Regex;
 use serde::Deserialize;
 use std::sync::LazyLock;
 
+static SUMMARY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(\d+)\s+(passed|failed|flaky|skipped)").unwrap());
+static DURATION_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\((\d+(?:\.\d+)?)(ms|s|m)\)").unwrap());
+static TEST_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[×✗]\s+.*?›\s+([^›]+\.spec\.[tj]sx?)").unwrap());
+
 use crate::parser::{
     emit_degradation_warning, emit_passthrough_warning, truncate_output, FormatMode, OutputParser,
     ParseResult, TestFailure, TestResult, TokenFormatter,
@@ -151,11 +158,6 @@ fn collect_test_results(
 
 /// Tier 2: Extract test statistics using regex (degraded mode)
 fn extract_playwright_regex(output: &str) -> Option<TestResult> {
-    static SUMMARY_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(\d+)\s+(passed|failed|flaky|skipped)").unwrap());
-    static DURATION_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"\((\d+(?:\.\d+)?)(ms|s|m)\)").unwrap());
-
     let clean_output = strip_ansi(output);
 
     let mut passed = 0;
@@ -203,9 +205,6 @@ fn extract_playwright_regex(output: &str) -> Option<TestResult> {
 
 /// Extract failures using regex
 fn extract_failures_regex(output: &str) -> Vec<TestFailure> {
-    static TEST_PATTERN: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"[×✗]\s+.*?›\s+([^›]+\.spec\.[tj]sx?)").unwrap());
-
     let mut failures = Vec::new();
 
     for caps in TEST_PATTERN.captures_iter(output) {
